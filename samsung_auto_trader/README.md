@@ -89,6 +89,8 @@ This also generates a schema file alongside the CSV with field descriptions, for
 - `samsung_price_history.csv`
 - `samsung_price_history.schema.csv`
 
+Note: the current Korea Investment historical price API is limited to about 100 rows per request for daily/weekly/monthly data. For a 10-year daily history, the exporter must fetch multiple date ranges sequentially.
+
 Options:
 
 - `--symbol`: stock code to export (default `005930`)
