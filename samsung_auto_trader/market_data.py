@@ -9,6 +9,23 @@ logger = logging.getLogger(__name__)
 
 PRICE_KEYS = ["stck_prpr", "STCK_PRPR", "prpr", "PRPR", "price"]
 
+HISTORICAL_FIELD_DESCRIPTIONS = {
+    "acml_prtt_rate": "누적수익률",
+    "acml_vol": "누적거래량",
+    "flng_cls_code": "외국인구분코드",
+    "frgn_ntby_qty": "외국인순매수수량",
+    "hts_frgn_ehrt": "HTS외국인보유율",
+    "prdy_ctrt": "전일대비율",
+    "prdy_vrss": "전일대비",
+    "prdy_vrss_sign": "전일대비부호",
+    "prdy_vrss_vol_rate": "전일대비거래량증감율",
+    "stck_bsop_date": "영업일자",
+    "stck_clpr": "종가",
+    "stck_hgpr": "고가",
+    "stck_lwpr": "저가",
+    "stck_oprc": "시가",
+}
+
 
 def _extract_row(data: Dict[str, Any]) -> Dict[str, Any]:
     if "output" in data:
@@ -89,6 +106,20 @@ def get_historical_prices(
     return output
 
 
+def _write_field_descriptions(file_path: Path) -> Path:
+    schema_path = file_path.with_name(f"{file_path.stem}.schema.csv")
+    logger.info("Writing field description schema to %s", schema_path)
+
+    with schema_path.open("w", newline="", encoding="utf-8") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["field", "description"])
+        for field, description in sorted(HISTORICAL_FIELD_DESCRIPTIONS.items()):
+            writer.writerow([field, description])
+
+    logger.info("Schema export complete: %s", schema_path)
+    return schema_path
+
+
 def export_historical_prices(
     api_client: ApiClient,
     symbol: str,
@@ -96,6 +127,7 @@ def export_historical_prices(
     period_div: str = "D",
     org_adj_prc: str = "1",
     market_div: str = "J",
+    include_schema: bool = True,
 ) -> Path:
     rows = get_historical_prices(
         api_client,
@@ -117,6 +149,9 @@ def export_historical_prices(
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+
+    if include_schema:
+        _write_field_descriptions(file_path)
 
     logger.info("Export complete: %s", file_path)
     return file_path

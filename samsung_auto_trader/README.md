@@ -84,6 +84,11 @@ PYTHONPATH=./samsung_auto_trader python samsung_auto_trader/export_history.py \
   --market J
 ```
 
+This also generates a schema file alongside the CSV with field descriptions, for example:
+
+- `samsung_price_history.csv`
+- `samsung_price_history.schema.csv`
+
 Options:
 
 - `--symbol`: stock code to export (default `005930`)
@@ -91,6 +96,23 @@ Options:
 - `--period`: `D` for daily, `W` for weekly, `M` for monthly
 - `--adj`: `1` for adjusted prices, `0` for unadjusted
 - `--market`: `J` for KRX, `NX` for NXT, `UN` for unified
+
+Known field descriptions include:
+
+- `acml_prtt_rate`: 누적수익률
+- `acml_vol`: 누적거래량
+- `flng_cls_code`: 외국인구분코드
+- `frgn_ntby_qty`: 외국인순매수수량
+- `hts_frgn_ehrt`: HTS외국인보유율
+- `prdy_ctrt`: 전일대비율
+- `prdy_vrss`: 전일대비
+- `prdy_vrss_sign`: 전일대비부호
+- `prdy_vrss_vol_rate`: 전일대비거래량증감율
+- `stck_bsop_date`: 영업일자
+- `stck_clpr`: 종가
+- `stck_hgpr`: 고가
+- `stck_lwpr`: 저가
+- `stck_oprc`: 시가
 
 ## Notes
 
