@@ -69,6 +69,29 @@ PYTHONPATH=./samsung_auto_trader python samsung_auto_trader/main.py
 - Confirmed holdings lookup and available cash extraction from the Korea Investment mock API.
 - Trading loop is time-zone-aware and uses Asia/Seoul market hours.
 
+## Historical Price Export
+
+You can export Samsung Electronics historical price data to CSV using the added export script.
+
+From the repository root:
+
+```bash
+PYTHONPATH=./samsung_auto_trader python samsung_auto_trader/export_history.py \
+  --symbol 005930 \
+  --output samsung_price_history.csv \
+  --period D \
+  --adj 1 \
+  --market J
+```
+
+Options:
+
+- `--symbol`: stock code to export (default `005930`)
+- `--output`: CSV output path
+- `--period`: `D` for daily, `W` for weekly, `M` for monthly
+- `--adj`: `1` for adjusted prices, `0` for unadjusted
+- `--market`: `J` for KRX, `NX` for NXT, `UN` for unified
+
 ## Notes
 
 - The bot is designed for mock/demo trading using the Korea Investment Open API.

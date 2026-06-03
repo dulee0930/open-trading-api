@@ -1,5 +1,7 @@
+import csv
 import logging
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, List
 
 from api_client import ApiClient
 
@@ -50,3 +52,71 @@ def get_current_price(api_client: ApiClient, symbol: str) -> int:
     price = _find_price(row)
     logger.info("Current price for %s is %s KRW", symbol, price)
     return price
+
+
+def get_historical_prices(
+    api_client: ApiClient,
+    symbol: str,
+    period_div: str = "D",
+    org_adj_prc: str = "1",
+    market_div: str = "J",
+) -> List[Dict[str, Any]]:
+    logger.info(
+        "Fetching historical prices for %s (period=%s, adj=%s)",
+        symbol,
+        period_div,
+        org_adj_prc,
+    )
+
+    response = api_client.get(
+        "/uapi/domestic-stock/v1/quotations/inquire-daily-price",
+        tr_id="FHKST01010400",
+        params={
+            "FID_COND_MRKT_DIV_CODE": market_div,
+            "FID_INPUT_ISCD": symbol,
+            "FID_PERIOD_DIV_CODE": period_div,
+            "FID_ORG_ADJ_PRC": org_adj_prc,
+        },
+    )
+
+    output = response.get("output") or response.get("output1") or response.get("output2") or []
+    if isinstance(output, dict):
+        output = [output]
+    if not isinstance(output, list):
+        raise ValueError("Unexpected historical price response format")
+
+    logger.info("Retrieved %s historical price rows for %s", len(output), symbol)
+    return output
+
+
+def export_historical_prices(
+    api_client: ApiClient,
+    symbol: str,
+    output_path: str,
+    period_div: str = "D",
+    org_adj_prc: str = "1",
+    market_div: str = "J",
+) -> Path:
+    rows = get_historical_prices(
+        api_client,
+        symbol,
+        period_div=period_div,
+        org_adj_prc=org_adj_prc,
+        market_div=market_div,
+    )
+
+    file_path = Path(output_path)
+    if not rows:
+        raise ValueError("No historical price data available to export")
+
+    fieldnames = sorted({key for row in rows for key in row.keys()})
+    logger.info("Exporting historical prices to %s", file_path)
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    with file_path.open("w", newline="", encoding="utf-8") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    logger.info("Export complete: %s", file_path)
+    return file_path
