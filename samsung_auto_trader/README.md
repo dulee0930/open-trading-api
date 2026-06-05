@@ -8,8 +8,10 @@ A modular Python auto-trading script for Samsung Electronics (`005930`) using th
 - REST-only trading loop
 - Buy at `current_price - 2000`, sell at `current_price + 2000`
 - Execution verification through account holdings and cash updates
+- Uses `latest_trading_signal.json` for buy/sell decisions when available
 - Active only during trading hours `09:10` to `15:30`
 - Configurable via environment variables
+- Historical price export is separate from the trading loop
 
 ## Files
 
@@ -21,6 +23,9 @@ A modular Python auto-trading script for Samsung Electronics (`005930`) using th
 - `orders.py` - places buy/sell stock orders
 - `trader.py` - main trading loop and order execution logic
 - `main.py` - entrypoint to start the trader
+- `export_history.py` - exports historical price data to CSV from KIS API
+- `tiny_gpt_trading_signal_real_cli.py` - Tiny GPT signal generator and AI-driven order decision logic
+- `test_trading_logic.py` - validation tests for signal/order decision logic
 
 ## Requirements
 
@@ -62,6 +67,10 @@ From the repository root:
 PYTHONPATH=./samsung_auto_trader python samsung_auto_trader/main.py
 ```
 
+> `main.py` now reads `samsung_auto_trader/latest_trading_signal.json` by default and uses the AI signal file to decide whether to place buy/sell orders. If the signal file is missing or invalid, the cycle skips trading.
+>
+> You can override the signal path with `SIGNAL_JSON_PATH=/path/to/latest_trading_signal.json`.
+
 ## Validation
 
 - Verified token authentication successfully using stored env vars.
@@ -91,6 +100,20 @@ This also generates a schema file alongside the CSV with field descriptions, for
 
 Note: the current Korea Investment historical price API is limited to about 100 rows per request for daily/weekly/monthly data. For a 10-year daily history, the exporter must fetch multiple date ranges sequentially.
 
+> `main.py` does not automatically run `export_history.py`.
+> Exporting or refreshing historical price data is a separate step.
+
+If you want to refresh the file used by the signal generator, run:
+
+```bash
+PYTHONPATH=./samsung_auto_trader python samsung_auto_trader/export_history.py \
+  --symbol 005930 \
+  --output Samsung_Daily_Data_yfinance.csv \
+  --period D \
+  --adj 1 \
+  --market J
+```
+
 Options:
 
 - `--symbol`: stock code to export (default `005930`)
@@ -115,6 +138,18 @@ Known field descriptions include:
 - `stck_hgpr`: 고가
 - `stck_lwpr`: 저가
 - `stck_oprc`: 시가
+
+## Signal generation and order decision
+
+The repository now includes a separate Tiny GPT-based signal generator and order decision adapter. It reads refreshed historical price data and generates a JSON trading signal with confidence/entropy guards.
+
+Run the signal generator from the `samsung_auto_trader` directory with:
+
+```bash
+python tiny_gpt_trading_signal_real_cli.py
+```
+
+The generated JSON can be used for deterministic order decision logic that follows the agent rules described in the repository.
 
 ## Notes
 
