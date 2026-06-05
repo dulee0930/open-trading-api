@@ -67,6 +67,33 @@ From the repository root:
 PYTHONPATH=./samsung_auto_trader python samsung_auto_trader/main.py
 ```
 
+To generate the AI signal file before running the trader:
+
+```bash
+PYTHONPATH=./samsung_auto_trader python samsung_auto_trader/tiny_gpt_trading_signal_real_cli.py \
+  --csv Samsung_Daily_Data_yfinance.csv
+```
+
+By default, the script writes:
+
+- `samsung_auto_trader/latest_trading_signal.json`
+- `samsung_auto_trader/trading_signals_history.csv`
+
+You can override these paths with:
+
+```bash
+PYTHONPATH=./samsung_auto_trader python samsung_auto_trader/tiny_gpt_trading_signal_real_cli.py \
+  --csv Samsung_Daily_Data_yfinance.csv \
+  --output-json /path/to/latest_trading_signal.json \
+  --output-history /path/to/trading_signals_history.csv
+```
+
+### Recommended execution flow
+
+1. Update historical price data with `export_history.py`.
+2. Generate the latest AI trading signal with `tiny_gpt_trading_signal_real_cli.py`.
+3. Run `main.py` to execute orders according to `latest_trading_signal.json`.
+
 > `main.py` now reads `samsung_auto_trader/latest_trading_signal.json` by default and uses the AI signal file to decide whether to place buy/sell orders. If the signal file is missing or invalid, the cycle skips trading.
 >
 > You can override the signal path with `SIGNAL_JSON_PATH=/path/to/latest_trading_signal.json`.

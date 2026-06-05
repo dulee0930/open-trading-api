@@ -133,6 +133,28 @@ graph LR
 | `backtester/` | 과거 검증 + 파라미터 최적화 | Docker 기반 QuantConnect Lean, HTML 리포트 ([README](backtester/README.md)) |
 | `MCP/` | AI 도구 연결 | KIS Code Assistant + Trading MCP ([README](MCP/README.MD)) |
 
+## 2.5. 삼성 AI 트레이딩 실행 시나리오
+
+1. **장 마감 후(또는 장 시작 전)**: `export_history.py`를 실행하여 삼성전자(`005930`) 최신 일봉 데이터를 CSV로 업데이트합니다.
+2. **신호 생성**: `tiny_gpt_trading_signal_real_cli.py`를 실행합니다. 최신 CSV를 읽어 AI 예측을 수행하고, 확신도 필터를 거친 최종 매매 지시를 `samsung_auto_trader/latest_trading_signal.json`에 저장합니다.
+3. **매매 실행**: `main.py`를 실행하여 `trader.py`가 `latest_trading_signal.json`을 읽고, BUY/SELL/HOLD 신호에 따라 한국투자증권 모의투자 서버에 주문을 제출합니다.
+
+이 흐름에서 `main.py`는 과거의 단순한 `current_price ± 2000` 룰 대신, AI가 생성한 최신 JSON 신호를 기준으로 거래를 결정합니다.
+
+#### 실행 예시
+
+```bash
+PYTHONPATH=./samsung_auto_trader python samsung_auto_trader/export_history.py --symbol 005930 --output Samsung_Daily_Data_yfinance.csv --period D --adj 1 --market J
+PYTHONPATH=./samsung_auto_trader python samsung_auto_trader/tiny_gpt_trading_signal_real_cli.py --csv Samsung_Daily_Data_yfinance.csv
+PYTHONPATH=./samsung_auto_trader python samsung_auto_trader/main.py
+```
+
+> `latest_trading_signal.json`이 없거나 검증에 실패하면 `main.py`는 해당 사이클에서 거래를 건너뜁니다.
+
+#### 외부에서 신호 파일을 준비해야 하는 경우
+
+`torch`가 없는 환경에서는 `tiny_gpt_trading_signal_real_cli.py` 실행을 외부에서 완료한 뒤, 생성된 `latest_trading_signal.json`과 `trading_signals_history.csv`를 이 환경으로 가져와 사용하면 됩니다.
+
 #### 10개 프리셋 전략
 
 `strategy_builder`와 `backtester` 양쪽에서 동일하게 지원합니다.

@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, time as dt_time
+from datetime import datetime, time as dt_time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from typing import Any, Dict, Optional, Tuple
@@ -334,12 +334,11 @@ class AutoTrader:
         if not executed:
             logger.info("No execution detected in this cycle")
 
-    @staticmethod
     def _seconds_until(self, target_time: dt_time) -> int:
         now = self._now()
         target = datetime.combine(now.date(), target_time, tzinfo=self.local_tz)
         if target <= now:
-            target = target.replace(day=now.day + 1)
+            target = datetime.combine(now.date() + timedelta(days=1), target_time, tzinfo=self.local_tz)
         return int((target - now).total_seconds())
 
     def _now(self) -> datetime:

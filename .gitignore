@@ -118,6 +118,13 @@ cython_debug/
 # ===== mkdocs =====
 /site
 
+# ===== samsung_auto_trader local artifacts =====
+/samsung_auto_trader/token_cache.json
+
+# ===== local exports =====
+/Samsung_Daily_Data_yfinance.csv
+/Samsung_Daily_Data_yfinance.schema.csv
+
 # ===== IDE =====
 .vscode/
 .idea/
