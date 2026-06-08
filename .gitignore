@@ -120,8 +120,6 @@ cython_debug/
 
 # ===== samsung_auto_trader local artifacts =====
 /samsung_auto_trader/token_cache.json
-/samsung_auto_trader/latest_trading_signal.json
-/samsung_auto_trader/trading_signals_history.csv
 
 # ===== local exports =====
 /Samsung_Daily_Data_yfinance.csv

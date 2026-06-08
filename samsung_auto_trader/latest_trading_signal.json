@@ -1,0 +1,61 @@
+{
+  "symbol": "005930",
+  "source_csv": "/content/Samsung_Daily_Data_yfinance.csv",
+  "as_of_date": "2026-05-21",
+  "latest_close": 299500.0,
+  "latest_market_state_token": "T_S_UP|M5_POS|M20_S_POS|RSI_STRONG|VOL_NORMAL|RNG_V_HIGH",
+  "target_definition": {
+    "horizon_trading_days": 5,
+    "buy_if_future_return_gte": 0.02,
+    "sell_if_future_return_lte": -0.02
+  },
+  "prediction": {
+    "raw_signal": "BUY",
+    "trading_signal": "BUY",
+    "confidence": 0.7610892057418823,
+    "prob_sell": 0.061995163559913635,
+    "prob_hold": 0.17691558599472046,
+    "prob_buy": 0.7610892057418823,
+    "normalized_entropy": 0.6249731779098511,
+    "min_confidence": 0.45,
+    "confidence_guard_applied": false,
+    "action_blocked_by_confidence": false
+  },
+  "model_config": {
+    "block_size": 64,
+    "emb_dim": 96,
+    "num_heads": 4,
+    "num_layers": 3,
+    "dropout": 0.15
+  },
+  "training_config": {
+    "horizon": 5,
+    "buy_threshold": 0.02,
+    "sell_threshold": -0.02,
+    "val_ratio": 0.2,
+    "batch_size": 128,
+    "epochs": 20,
+    "learning_rate": 0.0005,
+    "weight_decay": 0.01,
+    "min_confidence": 0.45,
+    "early_stop_patience": 6,
+    "min_epochs": 8,
+    "min_delta": 0.0001,
+    "max_grad_norm": 1.0,
+    "seed": 42
+  },
+  "training_summary": {
+    "best_epoch": 4,
+    "best_validation_balanced_accuracy": 0.3501261977692547,
+    "stopped_early": true,
+    "epochs_ran": 10,
+    "class_weights_used": true
+  },
+  "vocab_size": 1146,
+  "class_distribution": {
+    "HOLD": 2056,
+    "BUY": 1546,
+    "SELL": 1268
+  },
+  "note": "교육 및 모의투자용 신호입니다. 실제 매매 전 별도 검증과 리스크 관리가 필요합니다."
+}
