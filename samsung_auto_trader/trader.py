@@ -12,6 +12,8 @@ from config import Settings
 from market_data import get_current_price
 from orders import OrderResult, place_order
 from api_client import ApiClient
+from export_history import export_historical_prices
+from tiny_gpt_trading_signal_real_cli import generate_signal
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +23,7 @@ class AutoTrader:
         self.settings = settings
         self.api_client = api_client
         self.local_tz = ZoneInfo("Asia/Seoul")
+        self.last_daily_update_date = None
 
     def _signal_file_path(self) -> Path:
         env_path = os.environ.get("SIGNAL_JSON_PATH")
@@ -153,17 +156,56 @@ class AutoTrader:
         logger.info("HOLD: unknown trading signal %s", trading_signal)
         return None
 
+    def _has_daily_update_run(self, now: datetime) -> bool:
+        return self.last_daily_update_date == now.date()
+
+    def _run_daily_update(self) -> None:
+        now = self._now()
+        csv_path = Path(__file__).resolve().parent / "Samsung_Daily_Data_yfinance.csv"
+        json_path = Path(__file__).resolve().parent / "latest_trading_signal.json"
+        history_path = Path(__file__).resolve().parent / "trading_signals_history.csv"
+
+        logger.info("Running nightly data update for %s", now.strftime("%Y-%m-%d %H:%M"))
+        export_historical_prices(
+            client=self.api_client,
+            symbol=self.settings.symbol,
+            output=csv_path,
+            period="D",
+            adj="1",
+            market="J",
+        )
+        generate_signal(
+            csv_path=csv_path,
+            output_json=json_path,
+            output_history=history_path,
+            symbol=self.settings.symbol,
+            epochs=20,
+        )
+        self.last_daily_update_date = now.date()
+        logger.info("Nightly data and signal generation completed for %s", now.date())
+
     def run(self) -> None:
         logger.info("Starting Samsung Auto Trader")
 
         while True:
             now = self._now()
-            if now.time() >= self.settings.trading_end:
+
+            if now.time() >= dt_time(hour=23) and not self._has_daily_update_run(now):
+                self._run_daily_update()
+
+            if self.settings.trading_start <= now.time() < self.settings.trading_end:
                 logger.info(
-                    "Trading window ended at %s. Stopping trading loop.",
+                    "Trading window open: %s - %s (local time %s)",
+                    self.settings.trading_start.strftime("%H:%M"),
                     self.settings.trading_end.strftime("%H:%M"),
+                    now.strftime("%H:%M"),
                 )
-                break
+                self._trade_cycle()
+                if self._now().time() >= self.settings.trading_end:
+                    continue
+                logger.info("Sleeping %s seconds before next cycle", self.settings.polling_interval_seconds)
+                time.sleep(self.settings.polling_interval_seconds)
+                continue
 
             if now.time() < self.settings.trading_start:
                 sleep_seconds = self._seconds_until(self.settings.trading_start)
@@ -175,20 +217,22 @@ class AutoTrader:
                 time.sleep(min(sleep_seconds, 60))
                 continue
 
-            logger.info(
-                "Trading window open: %s - %s (local time %s)",
-                self.settings.trading_start.strftime("%H:%M"),
-                self.settings.trading_end.strftime("%H:%M"),
-                now.strftime("%H:%M"),
-            )
-
-            self._trade_cycle()
-
-            if datetime.now().time() >= self.settings.trading_end:
+            if now.time() >= self.settings.trading_end:
+                if not self._has_daily_update_run(now):
+                    sleep_seconds = self._seconds_until(dt_time(hour=23))
+                    logger.info(
+                        "Waiting for nightly update at 23:00. Sleeping %s seconds.",
+                        sleep_seconds,
+                    )
+                else:
+                    sleep_seconds = self._seconds_until(self.settings.trading_start)
+                    logger.info(
+                        "Nightly update already done. Waiting for next trading window at %s. Sleeping %s seconds.",
+                        self.settings.trading_start.strftime("%H:%M"),
+                        sleep_seconds,
+                    )
+                time.sleep(min(sleep_seconds, 60))
                 continue
-
-            logger.info("Sleeping %s seconds before next cycle", self.settings.polling_interval_seconds)
-            time.sleep(self.settings.polling_interval_seconds)
 
     def _trade_cycle(self) -> None:
         symbol = self.settings.symbol

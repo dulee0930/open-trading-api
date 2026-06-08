@@ -72,6 +72,7 @@
 │   ├── etfetn                   # ETF/ETN
 │   ├── overseas_futureoption    # 해외선물옵션
 │   └── overseas_stock           # 해외주식
+├── samsung_auto_trader/         # 삼성전자 자동매매 모듈
 ├── legacy/                      # 구 샘플코드 보관
 ├── stocks_info/                 # 종목정보파일 참고 데이터
 ├── kis_devlp.yaml               # API 설정 파일 (개인정보 입력 필요)

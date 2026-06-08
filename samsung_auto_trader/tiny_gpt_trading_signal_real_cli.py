@@ -783,230 +783,141 @@ def predict_history(model: nn.Module, token_ids: np.ndarray, block_size: int, de
     })
 
 
-
-def main():
-
-    parser = argparse.ArgumentParser(description="Generate basic Tiny GPT trading signals (from (2).py logic)")
-
-    parser.add_argument("--csv", required=True, help="입력 일봉 CSV 경로")
-
-    parser.add_argument("--output-json", default="latest_trading_signal.json", help="최신 신호 JSON 저장 경로")
-
-    parser.add_argument("--output-history", default="trading_signals_history.csv", help="전체 롤링 예측 CSV 저장 경로")
-
-    parser.add_argument("--symbol", default="005930", help="종목 코드")
-
-    parser.add_argument("--epochs", type=int, default=20, help="학습 에포크 수")
-
-    args = parser.parse_args()
-
-
-
-    csv_path = Path(args.csv)
-
-    output_json = Path(args.output_json)
-
-    output_history = Path(args.output_history)
-
-
+def generate_signal(
+    csv_path: str | Path | None = None,
+    output_json: str | Path | None = None,
+    output_history: str | Path | None = None,
+    symbol: str = "005930",
+    epochs: int = 20,
+) -> dict:
+    script_dir = Path(__file__).resolve().parent
+    csv_path = Path(csv_path or script_dir / "Samsung_Daily_Data_yfinance.csv")
+    output_json = Path(output_json or script_dir / "latest_trading_signal.json")
+    output_history = Path(output_history or script_dir / "trading_signals_history.csv")
 
     model_cfg = ModelConfig()
-
-    train_cfg = TrainingConfig(epochs=args.epochs, min_epochs=8, early_stop_patience=6)
-
-
+    train_cfg = TrainingConfig(epochs=epochs, min_epochs=8, early_stop_patience=6)
 
     set_seed(train_cfg.seed)
-
     df = load_and_build_features(csv_path, train_cfg)
-
     vocab, inv_vocab = build_vocab(df["market_state_token"])
-
     token_ids = encode_tokens(df["market_state_token"], vocab)
-
     labels = df["label_id"].to_numpy(dtype=np.int64)
 
-
-
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
     train_loader, val_loader, train_indices, val_indices = make_loaders(token_ids, labels, model_cfg, train_cfg)
 
-
-
     model = TinyGPTTradingSignal(
-
         vocab_size=len(vocab),
-
         block_size=model_cfg.block_size,
-
         emb_dim=model_cfg.emb_dim,
-
         num_heads=model_cfg.num_heads,
-
         num_layers=model_cfg.num_layers,
-
         dropout=model_cfg.dropout,
-
     ).to(device)
 
-
-
     optimizer = torch.optim.AdamW(model.parameters(), lr=train_cfg.learning_rate, weight_decay=train_cfg.weight_decay)
-
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(train_cfg.epochs, 1), eta_min=train_cfg.learning_rate * 0.05)
-
     class_weights = make_class_weights(labels[train_indices], device=device)
 
-
-
     history_log = []
-
     best_score = -float("inf")
-
     best_epoch = 0
-
     best_state = copy.deepcopy(model.state_dict())
-
     epochs_without_improvement = 0
-
     stopped_early = False
 
-
-
-    print(f"[{args.symbol}] AI 학습을 시작합니다...")
-
+    print(f"[{symbol}] AI 학습을 시작합니다...")
     for epoch in range(train_cfg.epochs):
-
         train_loss = train_one_epoch(model, train_loader, optimizer, device, class_weights=class_weights, max_grad_norm=train_cfg.max_grad_norm)
-
         val_metrics = evaluate_model(model, val_loader, device, class_weights=class_weights)
-
         scheduler.step()
 
-
-
         current_score = val_metrics.get("balanced_accuracy", val_metrics["accuracy"])
-
         improved = current_score > best_score + train_cfg.min_delta
-
         if improved:
-
             best_score = current_score
-
             best_epoch = epoch + 1
-
             best_state = copy.deepcopy(model.state_dict())
-
             epochs_without_improvement = 0
-
         else:
-
             epochs_without_improvement += 1
 
-
-
         history_log.append({
-
             "epoch": epoch + 1,
-
             "train_loss": train_loss,
-
-            "val_balanced_accuracy": current_score
-
+            "val_balanced_accuracy": current_score,
         })
 
-
-
         if (epoch + 1) >= train_cfg.min_epochs and epochs_without_improvement >= train_cfg.early_stop_patience:
-
             stopped_early = True
-
             break
-
-
 
     model.load_state_dict(best_state)
 
-
-
     latest_context = token_ids[-model_cfg.block_size :]
-
     latest_pred = predict_one_context(model, latest_context, device, min_confidence=train_cfg.min_confidence)
-
     latest_row = df.iloc[-1]
 
-
-
     result = {
-
-        "symbol": args.symbol,
-
+        "symbol": symbol,
         "source_csv": str(csv_path),
-
         "as_of_date": str(latest_row["date"].date()),
-
         "latest_close": float(latest_row["close"]),
-
         "latest_market_state_token": str(latest_row["market_state_token"]),
-
         "target_definition": {
-
             "horizon_trading_days": train_cfg.horizon,
-
             "buy_if_future_return_gte": train_cfg.buy_threshold,
-
             "sell_if_future_return_lte": train_cfg.sell_threshold,
-
         },
-
         "prediction": latest_pred,
-
         "training_summary": {
-
             "best_epoch": best_epoch,
-
             "best_validation_balanced_accuracy": best_score,
-
             "stopped_early": stopped_early,
-
-        }
-
+        },
     }
 
-
-
     pred_history = predict_history(model, token_ids, model_cfg.block_size, device)
-
     history_df = df.reset_index(names="row_index").merge(pred_history, on="row_index", how="left")
 
-
-
-    # 파일 저장
-
     output_json.parent.mkdir(parents=True, exist_ok=True)
-
     output_json.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    
-
     output_history.parent.mkdir(parents=True, exist_ok=True)
-
     history_df.to_csv(output_history, index=False, encoding="utf-8-sig")
 
-
-
     print("실행 완료!")
-
     print(f"최신 신호: {latest_pred['trading_signal']} (확신도: {latest_pred['confidence']:.2f})")
-
     print(f"저장된 JSON: {output_json}")
-
     print(f"저장된 CSV: {output_history}")
 
+    return result
+
+
+def main():
+
+    script_dir = Path(__file__).resolve().parent
+    default_csv = script_dir / "Samsung_Daily_Data_yfinance.csv"
+    default_json = script_dir / "latest_trading_signal.json"
+    default_history = script_dir / "trading_signals_history.csv"
+
+    parser = argparse.ArgumentParser(description="Generate basic Tiny GPT trading signals (from (2).py logic)")
+    parser.add_argument("--csv", default=str(default_csv), help="입력 일봉 CSV 경로")
+    parser.add_argument("--output-json", default=str(default_json), help="최신 신호 JSON 저장 경로")
+    parser.add_argument("--output-history", default=str(default_history), help="전체 롤링 예측 CSV 저장 경로")
+    parser.add_argument("--symbol", default="005930", help="종목 코드")
+    parser.add_argument("--epochs", type=int, default=20, help="학습 에포크 수")
+    args = parser.parse_args()
+
+    generate_signal(
+        csv_path=args.csv,
+        output_json=args.output_json,
+        output_history=args.output_history,
+        symbol=args.symbol,
+        epochs=args.epochs,
+    )
 
 
 if __name__ == "__main__":
-
-    main() 
-
+    main()
