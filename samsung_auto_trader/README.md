@@ -182,13 +182,3 @@ PYTHONPATH=./samsung_auto_trader python samsung_auto_trader/tiny_gpt_trading_sig
 PYTHONPATH=./samsung_auto_trader python samsung_auto_trader/main.py
 ```
 
-## 레포 분리 시 체크리스트 (요약)
-
-- 패키지화(`pyproject.toml`/`setup.py`) 또는 `PYTHONPATH` 사용 보장
-- `requirements.txt` 및 실행 스크립트 복사/조정
-- `.gitignore`에 로컬 신호/토큰 파일 추가
-- CI 또는 배포 환경에서 23:00 업데이트 스케줄러 구현(서버/컨테이너에 cron 또는 GitHub Actions + workflow_dispatch)
-
----
-
-필요하면 제가 이 README를 루트 README에 맞춰 요약 버전으로 추가하거나, 새 레포를 위한 `pyproject.toml` 및 `__init__.py` 패키지 스켈레톤을 생성해 드리겠습니다. 어떤 작업부터 진행할까요?
